@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.79", features = [] }
 qjsonrs = { git = "https://github.com/RincewindWizzard/qjsonrs.git" }
+stderrlog = "^0.5.4"
+clap = { version = "4.4.13", features = ["derive"] }
+log = "0.4.20"

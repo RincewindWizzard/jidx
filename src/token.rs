@@ -25,11 +25,10 @@ pub enum StackElement {
     /// A JSON string in the context of a key in a JSON object.
     JsKey(String),
     /// Represents the current position in the array
-    ArrayIndex(usize)
+    ArrayIndex(usize),
 }
 
 impl StackElement {
-
     pub fn is_pop_token(&self) -> bool {
         match self {
             StackElement::EndObject => { true }
@@ -37,7 +36,6 @@ impl StackElement {
             _ => { false }
         }
     }
-
     pub fn as_value(&self) -> Option<Value> {
         match self {
             StackElement::JsNull => { Some(Null) }
