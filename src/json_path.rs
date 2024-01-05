@@ -307,7 +307,7 @@ mod tests {
             (StartArray, ".foo"),
             (JsString(json_string("bar")), ".foo[0]"),
             (JsString(json_string("car")), ".foo[1]"),
-            (EndArray, "."),
+            (EndArray, ".foo"),
             (JsKey(json_string("doo")), ".doo"),
             (StartObject, ".doo"),
             (JsKey(json_string("eol")), ".doo.eol"),
