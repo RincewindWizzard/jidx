@@ -1,10 +1,10 @@
 use std::fs::File;
 use std::str::FromStr;
+
 use log::debug;
 use qjsonrs::JsonToken;
 use qjsonrs::sync::{Stream, TokenIterator};
 use serde_json::Value;
-
 
 use crate::json_path::{JsonPath, ToJsonPath};
 use crate::token::StackElement::ArrayIndex;
@@ -157,15 +157,17 @@ impl JsonIndexIterator {
                     // return empty array as single value
                     if let StackElement::EndArray = token {
                         let last_index = self.token_stack.len();
-                        let array_len = match &self.token_stack[last_index - 2] {
-                            ArrayIndex(i) => { *i }
-                            _ => { 0 }
-                        };
-                        debug!("Array len: {array_len}");
-                        let path = self.token_stack.as_json_path();
-                        self.clean_stack();
-                        if array_len == 0 {
-                            return Ok(Some((path, Value::Array(vec![]))));
+                        if last_index > 2 {
+                            let array_len = match &self.token_stack[last_index - 2] {
+                                ArrayIndex(i) => { *i }
+                                _ => { 0 }
+                            };
+                            debug!("Array len: {array_len}");
+                            let path = self.token_stack.as_json_path();
+                            self.clean_stack();
+                            if array_len == 0 {
+                                return Ok(Some((path, Value::Array(vec![]))));
+                            }
                         }
                     }
 
@@ -197,7 +199,9 @@ impl JsonIndexIterator {
 mod tests {
     use std::collections::HashMap;
     use std::fs::File;
+
     use qjsonrs::sync::Stream;
+
     use crate::token::JsonIndexable;
 
     const EXAMPLE_JSON: &str = "./testdata/mars_weather.json";
