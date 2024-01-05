@@ -229,46 +229,60 @@ impl Display for JsonPath {
 }
 
 pub struct JsonIndexIterator<R>
+    where
+        R: std::io::Read
 {
     path: JsonPath,
     stream: qjsonrs::sync::Stream<R>,
 
 }
 
+impl<T: std::io::Read> Iterator for JsonIndexIterator<T> {
+    type Item = Result<(JsonPath, Value), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.stream.next() {
+                Ok(x) => {
+                    match x {
+                        None => { return None; }
+                        Some(token) => {
+                            let array_end = if let JsonToken::EndArray = token { true } else { false };
+                            let empty_array = self.path.head_is_empty_array() && array_end;
+
+
+                            self.path.push(&token);
+                            // println!("Token: {token:?}, Path: {:?}", self.path);
+                            if token.is_value() || empty_array {
+                                // println!("{}: {:?}", self.path, token);
+                                let path = self.path.clone();
+                                return Some(Ok(
+                                    if empty_array {
+                                        (path, Array(vec![]))
+                                    } else {
+                                        (path, token.as_value().expect("We already checked that this is a value."))
+                                    }
+                                ));
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Some(Err(e));
+                }
+            }
+        }
+    }
+}
+
 impl<R> JsonIndexIterator<R>
     where
         R: std::io::Read
 {
-    fn from(stream: Stream<R>) -> JsonIndexIterator<R> {
+    pub(crate) fn new(stream: Stream<R>) -> JsonIndexIterator<R> {
         JsonIndexIterator {
             path: JsonPath::new(),
             stream,
-        }
-    }
-    fn next(&mut self) -> Result<Option<(JsonPath, Value)>, Error> {
-        loop {
-            match self.stream.next()? {
-                None => { return Ok(None); }
-                Some(token) => {
-                    let array_end = if let JsonToken::EndArray = token { true } else { false };
-                    let empty_array = self.path.head_is_empty_array() && array_end;
-
-
-                    self.path.push(&token);
-                    // println!("Token: {token:?}, Path: {:?}", self.path);
-                    if token.is_value() || empty_array {
-                        // println!("{}: {:?}", self.path, token);
-                        let path = self.path.clone();
-                        return Ok(Some(
-                            if empty_array {
-                                (path, Array(vec![]))
-                            } else {
-                                (path, token.as_value().expect("We already checked that this is a value."))
-                            }
-                        ));
-                    }
-                }
-            }
         }
     }
 }
@@ -359,16 +373,18 @@ mod tests {
             ".[2] -> []",
             ".[3] -> null"
         ];
-
-        let mut stream = JsonIndexIterator::from(Stream::from_read(Cursor::new(data)).unwrap());
+        let stream = Cursor::new(data);
+        let stream = Stream::from_read(stream).unwrap();
+        let mut stream = JsonIndexIterator::new(stream);
 
         let mut result = vec![];
         loop {
-            match stream.next().unwrap() {
+            match stream.next() {
                 None => {
                     break;
                 }
-                Some((key, value)) => {
+                Some(elem) => {
+                    let (key, value) = elem.unwrap();
                     let s = format!("{key} -> {value}");
                     println!("{}", s);
                     result.push(s);
@@ -384,13 +400,14 @@ mod tests {
     #[test]
     fn test_iterator() {
         let file = File::open("./testdata/mars_weather.json").unwrap();
-        let mut stream = JsonIndexIterator::from(Stream::from_read(file).unwrap());
+        let mut stream = JsonIndexIterator::new(Stream::from_read(file).unwrap());
         loop {
-            match stream.next().unwrap() {
+            match stream.next() {
                 None => {
                     break;
                 }
-                Some((key, value)) => {
+                Some(elem) => {
+                    let (key, value) = elem.unwrap();
                     println!("{key} -> {value}");
                 }
             }
