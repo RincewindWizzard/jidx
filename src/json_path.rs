@@ -6,6 +6,14 @@ pub(crate) type JsonPath = String;
 
 pub trait ToJsonPath {
     fn as_json_path(&self) -> JsonPath;
+
+    fn escape(s: &str) -> String {
+        if s.contains(".") {
+            format!("\"{s}\"")
+        } else {
+            s.to_string()
+        }
+    }
 }
 
 
@@ -59,19 +67,3 @@ impl ToJsonPath for Vec<StackElement> {
         xs.join("")
     }
 }
-
-
-
-
-/*impl Display for Value {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::String(x) => { write!(f, "\"{x}\"") }
-            Value::Number(x) => { write!(f, "{x}") }
-            Value::Boolean(x) => { write!(f, "{x}") }
-            Value::Null => { write!(f, "null") }
-            Value::EmptyArray => { write!(f, "[]") }
-            _ => { Ok(()) }
-        }
-    }
-}*/

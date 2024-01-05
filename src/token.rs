@@ -219,16 +219,15 @@ mod tests {
             }
         }
 
-
+        assert_eq!(result.len(), 35);
         let parsed: serde_json::Value = serde_json::from_str(include_str!("../testdata/mars_weather_flattened.json"))
             .expect("Failed to parse JSON");
 
-        // Konvertieren des serde_json::Value in eine HashMap
         if let serde_json::Value::Object(map) = parsed {
             for (key, value) in map {
-                if let Some(actual) = result.get(&key) {
-                    assert_eq!(*actual, value);
-                }
+                let actual = result.get(&key);
+                assert!(actual.is_some(), "Missing key: {}", key);
+                assert_eq!(*actual.unwrap(), value);
             }
         } else {
             panic!("Could not parse expected result!");

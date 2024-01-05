@@ -39,8 +39,8 @@
         "valid": false
       }, 
       "WD": {
-        "sol_hours_with_data": [
-          6, 
+        "sol_hours.with_data": [
+          6.5,
           7, 
           8, 
           9, 
