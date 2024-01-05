@@ -1,12 +1,69 @@
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 use qjsonrs::JsonToken;
+use serde_json::Value;
+
+use crate::json_path::PathElement::ValueLeaf;
 
 #[derive(Debug)]
 pub enum PathElement {
     Key(String),
     EmptyArray,
     ArrayIndex(usize),
+    Object,
+    ValueLeaf,
+}
+
+impl PathElement {
+    fn is_array(&self) -> bool {
+        match self {
+            PathElement::EmptyArray => { true }
+            PathElement::ArrayIndex(_) => { true }
+            _ => { false }
+        }
+    }
+
+    fn is_object(&self) -> bool {
+        match self {
+            PathElement::Object => { true }
+            _ => { false }
+        }
+    }
+
+    fn is_leaf(&self) -> bool {
+        match self {
+            ValueLeaf => { true }
+            _ => { false }
+        }
+    }
+}
+
+
+pub trait TokenInfo {
+    fn is_value(&self) -> bool;
+    fn as_value(&self) -> Option<Value>;
+}
+
+impl TokenInfo for JsonToken<'_> {
+    fn is_value(&self) -> bool {
+        match self {
+            JsonToken::JsNull => { true }
+            JsonToken::JsBoolean(_) => { true }
+            JsonToken::JsNumber(_) => { true }
+            JsonToken::JsString(_) => { true }
+            _ => { false }
+        }
+    }
+    fn as_value(&self) -> Option<Value> {
+        match self {
+            JsonToken::JsNull => { Some(Value::Null) }
+            JsonToken::JsBoolean(b) => { Some(Value::Bool(*b)) }
+            JsonToken::JsNumber(n) => { Some(Value::Number(serde_json::Number::from_str(n).ok()?)) }
+            JsonToken::JsString(s) => { Some(Value::String(s.clone().into_raw_str().to_string())) }
+            _ => { None }
+        }
+    }
 }
 
 impl Display for PathElement {
@@ -14,7 +71,7 @@ impl Display for PathElement {
         let str = match self {
             PathElement::Key(key) => { format!(".{key}") }
             PathElement::ArrayIndex(i) => { format!("[{i}]") }
-            PathElement::EmptyArray => { format!("") }
+            _ => { format!("") }
         };
         write!(f, "{}", str)
     }
@@ -46,15 +103,27 @@ impl JsonPath {
         }
     }
 
-    fn remove_branch(&mut self) {
+    fn backtrack(&mut self) {
         loop {
             match self.elements.pop() {
                 None => { break; }
                 Some(element) => {
-                    match element {
-                        PathElement::Key(_) => { break; }
-                        PathElement::EmptyArray => {}
-                        PathElement::ArrayIndex(_) => {}
+                    if element.is_object() || element.is_array() {
+                        self.elements.push(element);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn end_array(&mut self) {
+        loop {
+            match self.elements.pop() {
+                None => { break; }
+                Some(element) => {
+                    if element.is_array() {
+                        break;
                     }
                 }
             }
@@ -62,46 +131,85 @@ impl JsonPath {
     }
 
 
-    pub fn push(&mut self, token: &JsonToken) {
-        match token {
-            JsonToken::StartObject => {}
-            JsonToken::EndObject => {
-                let head = self.elements.last();
-                if let Some(PathElement::Key(_)) = head {
-                    self.elements.pop();
+    fn end_object(&mut self) {
+        loop {
+            match self.elements.pop() {
+                None => { break; }
+                Some(element) => {
+                    if element.is_object() {
+                        break;
+                    }
                 }
+            }
+        }
+    }
+
+
+    fn head_is_leaf(&self) -> bool {
+        if let Some(PathElement::ValueLeaf) = self.elements.last() {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn head_is_array(&self) -> bool {
+        let head = self.elements.last();
+        if let Some(PathElement::EmptyArray) = head {
+            true
+        } else if let Some(PathElement::ArrayIndex(_)) = head {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn push_value(&mut self, element: PathElement) {
+        if self.head_is_array() {
+            self.array_index_inc();
+        }
+
+
+        self.elements.push(element);
+    }
+
+    fn push_key(&mut self, key: &str) {
+        self.elements.push(PathElement::Key(key.to_string()));
+    }
+
+    pub fn push(&mut self, token: &JsonToken) {
+        if self.head_is_leaf() {
+            self.backtrack();
+        }
+        match token {
+            JsonToken::StartObject => {
+                self.push_value(PathElement::Object);
+            }
+            JsonToken::EndObject => {
+                self.elements.pop();
+                self.backtrack();
             }
             JsonToken::StartArray => {
-                self.elements.push(PathElement::EmptyArray);
+                self.push_value(PathElement::EmptyArray);
             }
             JsonToken::EndArray => {
-                let head = self.elements.last();
-                if let Some(PathElement::EmptyArray) = head {
-                    self.elements.pop();
-                } else if let Some(PathElement::ArrayIndex(_)) = head {
-                    self.elements.pop();
-                }
-
-                if let Some(PathElement::Key(key)) = self.elements.last() {
-                    self.elements.pop();
-                } else {
-                    panic!("Json Path is corrupted! {self:?}");
-                }
+                self.end_array();
+                self.backtrack();
             }
             JsonToken::JsNull => {
-                self.array_index_inc();
+                self.push_value(ValueLeaf);
             }
             JsonToken::JsBoolean(_) => {
-                self.array_index_inc();
+                self.push_value(ValueLeaf);
             }
             JsonToken::JsNumber(_) => {
-                self.array_index_inc();
+                self.push_value(ValueLeaf);
             }
             JsonToken::JsString(_) => {
-                self.array_index_inc();
+                self.push_value(ValueLeaf);
             }
             JsonToken::JsKey(s) => {
-                self.elements.push(PathElement::Key(s.clone().into_raw_str().to_string()));
+                self.push_key(s.clone().into_raw_str());
             }
         }
     }
@@ -118,7 +226,7 @@ impl Display for JsonPath {
         if result.is_empty() {
             write!(f, ".")
         } else {
-            write!(f, "{result}")
+            write!(f, ".{result}")
         }
     }
 }
@@ -130,7 +238,7 @@ mod tests {
     use qjsonrs::JsonToken::{EndArray, EndObject, JsKey, JsNull, JsString, StartArray, StartObject};
     use qjsonrs::sync::{Stream, TokenIterator};
 
-    use crate::json_path::{JsonPath, PathElement};
+    use crate::json_path::{JsonPath, PathElement, TokenInfo};
 
     #[test]
     fn test_format() {
@@ -175,14 +283,25 @@ mod tests {
         }
     }
 
+
     #[test]
     fn test_token_stream() {
         let data = include_bytes!("../testdata/mars_weather.json");
 
         let mut stream = Stream::from_read(&data[..]).unwrap();
+        let mut json_path = JsonPath::new();
 
         while let Ok(Some(token)) = stream.next() {
-            println!("{token:?}");
+            json_path.push(&token);
+
+            // println!("Token: {token:?}, Path: {json_path:?}");
+            if let Some(e) = json_path.elements.first() {
+                assert!(e.is_array());
+            }
+            if let Some(value) = token.as_value() {
+                println!("\t{json_path}: {value}");
+            }
         }
     }
 }
+
