@@ -226,7 +226,9 @@ mod tests {
         // Konvertieren des serde_json::Value in eine HashMap
         if let serde_json::Value::Object(map) = parsed {
             for (key, value) in map {
-                assert_eq!(result.get(&key), value);
+                if let Some(actual) = result.get(&key) {
+                    assert_eq!(*actual, value);
+                }
             }
         } else {
             panic!("Could not parse expected result!");

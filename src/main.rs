@@ -4,6 +4,7 @@ use std::fs::File;
 use clap::Parser;
 use log::debug;
 use qjsonrs::sync::{Stream, TokenIterator};
+use serde_json::{Deserializer, Value};
 
 use crate::args::Args;
 use crate::json_path::{JsonPath};
@@ -29,6 +30,7 @@ fn main() {
         .init().expect("Could not setup logging!");
     read_json().unwrap();
 }
+
 
 fn read_json() -> anyhow::Result<()> {
     let file = File::open(EXAMPLE_JSON)?;
