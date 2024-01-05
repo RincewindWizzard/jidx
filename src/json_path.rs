@@ -1,43 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use crate::json_path::JsToken::JsKey;
-use crate::json_path::PathElement::Key;
-
-/// A token from a stream of JSON.
-#[derive(Debug, PartialEq, Clone)]
-pub enum JsToken {
-    /// The start of an object, a.k.a. '{'
-    StartObject,
-    /// The end of an object, a.k.a. '}'
-    EndObject,
-    /// The start of an array, a.k.a. '['
-    StartArray,
-    /// The end of an object, a.k.a. ']'
-    EndArray,
-    /// The token 'null'
-    JsNull,
-    /// Either 'true' or 'false'
-    JsBoolean(bool),
-    /// A number, unparsed. i.e. '-123.456e-789'
-    JsNumber(String),
-    /// A JSON string in a value context.
-    JsString(String),
-    /// A JSON string in the context of a key in a JSON object.
-    JsKey(String),
-}
-
-
-impl JsToken {
-    fn is_value(&self) -> bool {
-        match self {
-            JsToken::JsNull => { true }
-            JsToken::JsBoolean(_) => { true }
-            JsToken::JsNumber(_) => { true }
-            JsToken::JsString(_) => { true }
-            _ => { false }
-        }
-    }
-}
+use qjsonrs::JsonToken;
 
 #[derive(Debug)]
 pub enum PathElement {
@@ -99,19 +62,19 @@ impl JsonPath {
     }
 
 
-    pub fn push(&mut self, token: &JsToken) {
+    pub fn push(&mut self, token: &JsonToken) {
         match token {
-            JsToken::StartObject => {}
-            JsToken::EndObject => {
+            JsonToken::StartObject => {}
+            JsonToken::EndObject => {
                 let head = self.elements.last();
                 if let Some(PathElement::Key(_)) = head {
                     self.elements.pop();
                 }
             }
-            JsToken::StartArray => {
+            JsonToken::StartArray => {
                 self.elements.push(PathElement::EmptyArray);
             }
-            JsToken::EndArray => {
+            JsonToken::EndArray => {
                 let head = self.elements.last();
                 if let Some(PathElement::EmptyArray) = head {
                     self.elements.pop();
@@ -119,26 +82,26 @@ impl JsonPath {
                     self.elements.pop();
                 }
 
-                if let Some(Key(key)) = self.elements.last() {
+                if let Some(PathElement::Key(key)) = self.elements.last() {
                     self.elements.pop();
                 } else {
                     panic!("Json Path is corrupted! {self:?}");
                 }
             }
-            JsToken::JsNull => {
+            JsonToken::JsNull => {
                 self.array_index_inc();
             }
-            JsToken::JsBoolean(_) => {
+            JsonToken::JsBoolean(_) => {
                 self.array_index_inc();
             }
-            JsToken::JsNumber(_) => {
+            JsonToken::JsNumber(_) => {
                 self.array_index_inc();
             }
-            JsToken::JsString(_) => {
+            JsonToken::JsString(_) => {
                 self.array_index_inc();
             }
-            JsToken::JsKey(s) => {
-                self.elements.push(PathElement::Key(s.clone()));
+            JsonToken::JsKey(s) => {
+                self.elements.push(PathElement::Key(s.clone().into_raw_str().to_string()));
             }
         }
     }
@@ -163,8 +126,11 @@ impl Display for JsonPath {
 
 #[cfg(test)]
 mod tests {
+    use qjsonrs::JsonString;
+    use qjsonrs::JsonToken::{EndArray, EndObject, JsKey, JsNull, JsString, StartArray, StartObject};
+    use qjsonrs::sync::{Stream, TokenIterator};
+
     use crate::json_path::{JsonPath, PathElement};
-    use crate::json_path::JsToken::{EndArray, EndObject, JsKey, JsNull, JsString, StartArray, StartObject};
 
     #[test]
     fn test_format() {
@@ -173,22 +139,25 @@ mod tests {
         }
     }
 
-
+    fn json_string(s: &str) -> JsonString {
+        JsonString::from_str_ref(s).unwrap()
+    }
 
     #[test]
     fn test_json_path() {
         let mut json_path = JsonPath::new();
 
+
         let steps = vec![
             (StartObject, "."),
-            (JsKey("foo".to_string()), ".foo"),
+            (JsKey(json_string("foo")), ".foo"),
             (StartArray, ".foo"),
-            (JsString("bar".to_string()), ".foo[0]"),
-            (JsString("car".to_string()), ".foo[1]"),
+            (JsString(json_string("bar")), ".foo[0]"),
+            (JsString(json_string("car")), ".foo[1]"),
             (EndArray, "."),
-            (JsKey("doo".to_string()), ".doo"),
+            (JsKey(json_string("doo")), ".doo"),
             (StartObject, ".doo"),
-            (JsKey("eol".to_string()), ".doo.eol"),
+            (JsKey(json_string("eol")), ".doo.eol"),
             (JsNull, ".doo.eol"),
             (EndObject, ".doo"),
             (EndObject, "."),
@@ -203,6 +172,17 @@ mod tests {
             let actual = format!("{}", json_path);
             assert_eq!(actual, **expected, "Last token {:?}, Path: {:?}", token, json_path);
             println!("{previous} + {token:?} -> {json_path} ?= {expected}");
+        }
+    }
+
+    #[test]
+    fn test_token_stream() {
+        let data = include_bytes!("../testdata/mars_weather.json");
+
+        let mut stream = Stream::from_read(&data[..]).unwrap();
+
+        while let Ok(Some(token)) = stream.next() {
+            println!("{token:?}");
         }
     }
 }

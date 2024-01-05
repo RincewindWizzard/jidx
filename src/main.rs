@@ -56,16 +56,5 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use qjsonrs::sync::{Stream, TokenIterator};
 
-    #[test]
-    fn test_token_stream() {
-        let data = include_bytes!("../testdata/mars_weather.json");
-
-        let mut stream = Stream::from_read(&data[..]).unwrap();
-
-        while let Ok(Some(token)) = stream.next() {
-            println!("{token:?}");
-        }
-    }
 }
