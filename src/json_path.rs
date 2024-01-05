@@ -223,10 +223,10 @@ impl Display for JsonPath {
             .collect::<Vec<String>>()
             .join("");
 
-        if result.is_empty() {
-            write!(f, ".")
-        } else {
+        if result.is_empty() || !result.starts_with(".") {
             write!(f, ".{result}")
+        } else {
+            write!(f, "{result}")
         }
     }
 }
@@ -267,7 +267,7 @@ mod tests {
             (StartObject, ".doo"),
             (JsKey(json_string("eol")), ".doo.eol"),
             (JsNull, ".doo.eol"),
-            (EndObject, ".doo"),
+            (EndObject, "."),
             (EndObject, "."),
         ];
 
@@ -299,7 +299,7 @@ mod tests {
                 assert!(e.is_array());
             }
             if let Some(value) = token.as_value() {
-                println!("\t{json_path}: {value}");
+                println!("{json_path}: {value}");
             }
         }
     }
