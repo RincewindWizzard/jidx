@@ -11,3 +11,5 @@ qjsonrs = { git = "https://github.com/RincewindWizzard/qjsonrs.git" }
 stderrlog = "^0.5.4"
 clap = { version = "4.4.13", features = ["derive"] }
 log = "0.4.20"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = [] }
