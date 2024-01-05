@@ -2,11 +2,14 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use qjsonrs::JsonToken;
+use qjsonrs::sync::{Error, Stream, TokenIterator};
 use serde_json::Value;
+use serde_json::Value::Array;
 
 use crate::json_path::PathElement::ValueLeaf;
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub enum PathElement {
     Key(String),
     EmptyArray,
@@ -77,7 +80,7 @@ impl Display for PathElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JsonPath {
     elements: Vec<PathElement>,
 }
@@ -164,6 +167,15 @@ impl JsonPath {
         }
     }
 
+    fn head_is_empty_array(&self) -> bool {
+        let head = self.elements.last();
+        if let Some(PathElement::EmptyArray) = head {
+            true
+        } else {
+            false
+        }
+    }
+
     fn push_value(&mut self, element: PathElement) {
         if self.head_is_array() {
             self.array_index_inc();
@@ -194,7 +206,7 @@ impl JsonPath {
             }
             JsonToken::EndArray => {
                 self.end_array();
-                self.backtrack();
+                self.elements.push(ValueLeaf);
             }
             JsonToken::JsNull => {
                 self.push_value(ValueLeaf);
@@ -231,14 +243,62 @@ impl Display for JsonPath {
     }
 }
 
+pub struct JsonIndexIterator<R>
+{
+    path: JsonPath,
+    stream: qjsonrs::sync::Stream<R>,
+
+}
+
+impl<R> JsonIndexIterator<R>
+    where
+        R: std::io::Read
+{
+    fn from(stream: Stream<R>) -> JsonIndexIterator<R> {
+        JsonIndexIterator {
+            path: JsonPath::new(),
+            stream,
+        }
+    }
+    fn next(&mut self) -> Result<Option<(JsonPath, Value)>, Error> {
+        loop {
+            match self.stream.next()? {
+                None => { return Ok(None); }
+                Some(token) => {
+                    let array_end = if let JsonToken::EndArray = token { true } else { false };
+                    let empty_array = self.path.head_is_empty_array() && array_end;
+
+
+                    self.path.push(&token);
+                    // println!("Token: {token:?}, Path: {:?}", self.path);
+                    if token.is_value() || empty_array {
+                        // println!("{}: {:?}", self.path, token);
+                        let path = self.path.clone();
+                        return Ok(Some(
+                            if empty_array {
+                                (path, Array(vec![]))
+                            } else {
+                                (path, token.as_value().expect("We already checked that this is a value."))
+                            }
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::Cursor;
+
     use qjsonrs::JsonString;
     use qjsonrs::JsonToken::{EndArray, EndObject, JsKey, JsNull, JsString, StartArray, StartObject};
     use qjsonrs::sync::{Stream, TokenIterator};
 
-    use crate::json_path::{JsonPath, PathElement, TokenInfo};
+    use crate::json_path::{JsonIndexIterator, JsonPath, PathElement, TokenInfo};
 
     #[test]
     fn test_format() {
@@ -294,12 +354,60 @@ mod tests {
         while let Ok(Some(token)) = stream.next() {
             json_path.push(&token);
 
-            // println!("Token: {token:?}, Path: {json_path:?}");
+            println!("Token: {token:?}, Path: {json_path:?}");
             if let Some(e) = json_path.elements.first() {
-                assert!(e.is_array());
+                assert!(e.is_array() || e.is_leaf());
             }
             if let Some(value) = token.as_value() {
                 println!("{json_path}: {value}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_array_in_arrays() {
+        let data = "[[1, 2],[3],[], null]";
+        let expected = [
+            ".[0][0] -> 1",
+            ".[0][1] -> 2",
+            ".[1][0] -> 3",
+            ".[2] -> []",
+            ".[3] -> null"
+        ];
+
+        let mut stream = JsonIndexIterator::from(Stream::from_read(Cursor::new(data)).unwrap());
+
+        let mut result = vec![];
+        loop {
+            match stream.next().unwrap() {
+                None => {
+                    break;
+                }
+                Some((key, value)) => {
+                    let s = format!("{key} -> {value}");
+                    println!("{}", s);
+                    result.push(s);
+                }
+            }
+        }
+
+        for i in 0..expected.len() {
+            assert_eq!(result[i], expected[i]);
+        }
+    }
+
+    #[test]
+    fn test_iterator() {
+        let file = File::open("./testdata/mars_weather.json").unwrap();
+        let mut stream = JsonIndexIterator::from(Stream::from_read(file).unwrap());
+        loop {
+            match stream.next().unwrap() {
+                None => {
+                    break;
+                }
+                Some((key, value)) => {
+                    println!("{key} -> {value}");
+                }
             }
         }
     }
