@@ -18,6 +18,26 @@ pub enum PathElement {
     ValueLeaf,
 }
 
+fn escape_key(key: &str) -> String {
+    if key.contains(".") {
+        format!("\"{key}\"")
+    } else {
+        key.to_string()
+    }
+}
+
+impl Display for PathElement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            PathElement::Key(key) => { format!(".{}", escape_key(key)) }
+            PathElement::ArrayIndex(i) => { format!("[{i}]") }
+            _ => { format!("") }
+        };
+        write!(f, "{}", str)
+    }
+}
+
+
 impl PathElement {
     fn is_array(&self) -> bool {
         match self {
@@ -69,16 +89,6 @@ impl TokenInfo for JsonToken<'_> {
     }
 }
 
-impl Display for PathElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            PathElement::Key(key) => { format!(".{key}") }
-            PathElement::ArrayIndex(i) => { format!("[{i}]") }
-            _ => { format!("") }
-        };
-        write!(f, "{}", str)
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct JsonPath {

@@ -13,5 +13,7 @@ manner:
 | .a[4].b  | "foo" | 500    |
 
 The first column is the json path to the value mentioned in the second column. Offset ist the position in the input file
-where the value begins. 
+where the value begins.
+
+Ah just kidding. I didn't had enogh time and just build the mvp.
 
