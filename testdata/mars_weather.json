@@ -1,59 +1,88 @@
-{
-  "sol_keys": [], 
-  "validity_checks": {
-    "1219": {
-      "AT": {
-        "sol_hours_with_data": [
-          6, 
-          7, 
-          8, 
-          9, 
-          10, 
-          11, 
-          12
-        ], 
-        "valid": false
-      }, 
-      "HWS": {
-        "sol_hours_with_data": [
-          6, 
-          7, 
-          8, 
-          9, 
-          10, 
-          11, 
-          12
-        ], 
-        "valid": false
-      }, 
-      "PRE": {
-        "sol_hours_with_data": [
-          6, 
-          7, 
-          8, 
-          9, 
-          10, 
-          11, 
-          12
-        ], 
-        "valid": false
-      }, 
-      "WD": {
-        "sol_hours.with_data": [
-          6.5,
-          7, 
-          8, 
-          9, 
-          10, 
-          11, 
-          12
-        ], 
-        "valid": false
+[
+  {
+    "sol_keys": [],
+    "validity_checks": {
+      "1219": {
+        "AT": {
+          "sol_hours_with_data": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "valid": false
+        },
+        "HWS": {
+          "sol_hours_with_data": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "valid": false
+        },
+        "PRE": {
+          "sol_hours_with_data": [
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "valid": false
+        },
+        "WD": {
+          "sol_hours.with_data": [
+            6.5,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "valid": false
+        }
+      },
+      "sol_hours_required": 18,
+      "sols_checked": [
+        "1219"
+      ]
+    },
+    "b": [
+      null,
+      {
+        "a": {
+          "a": {
+            "a": {
+              "a": {
+                "a": {
+                  "a": {
+                    "a": {
+                      "a": {
+                        "a": {
+                          "a": {
+                            "a": 1e100
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-    }, 
-    "sol_hours_required": 18, 
-    "sols_checked": [
-      "1219"
     ]
-  }
-}
+  },
+  null
+]
