@@ -133,21 +133,6 @@ impl JsonPath {
         }
     }
 
-
-    fn end_object(&mut self) {
-        loop {
-            match self.elements.pop() {
-                None => { break; }
-                Some(element) => {
-                    if element.is_object() {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-
     fn head_is_leaf(&self) -> bool {
         if let Some(PathElement::ValueLeaf) = self.elements.last() {
             true
@@ -332,7 +317,7 @@ mod tests {
         ];
 
 
-        for (i, step) in steps.iter().enumerate() {
+        for (_, step) in steps.iter().enumerate() {
             let (token, expected) = step;
 
             let previous = format!("{json_path}");
