@@ -217,20 +217,17 @@ mod tests {
             }
         }
 
-        assert_eq!(result.len(), 35);
 
         let parsed: serde_json::Value = serde_json::from_str(include_str!("../testdata/mars_weather_flattened.json"))
             .expect("Failed to parse JSON");
 
         // Konvertieren des serde_json::Value in eine HashMap
         if let serde_json::Value::Object(map) = parsed {
-            let mut hashmap: HashMap<String, serde_json::Value> = HashMap::new();
             for (key, value) in map {
-                hashmap.insert(key, value);
+                assert_eq!(result.get(&key), value);
             }
-
-            // Jetzt hast du die JSON-Daten in einer HashMap
-            println!("{:?}", hashmap);
+        } else {
+            panic!("Could not parse expected result!");
         }
     }
 }
