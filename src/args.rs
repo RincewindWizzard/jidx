@@ -7,9 +7,9 @@ pub(crate) struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub(crate) verbose: u8,
 
-    /// Path to config file
+    /// Path to input file
     #[arg(short, long)]
-    config: Option<String>,
+    input: Option<String>,
 
     /// no stdout printing
     #[arg(short, long)]
