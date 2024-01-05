@@ -1,10 +1,12 @@
 use std::fs::File;
+use std::str::FromStr;
 use log::debug;
 use qjsonrs::JsonToken;
 use qjsonrs::sync::{Stream, TokenIterator};
+use serde_json::Value;
 
-use crate::json_path::{JsonPath, ToJsonPath, Value};
-use crate::json_path::Value::{Boolean, EmptyArray, Null, Number};
+
+use crate::json_path::{JsonPath, ToJsonPath};
 use crate::token::StackElement::ArrayIndex;
 
 /// A token from a stream of JSON.
@@ -42,9 +44,9 @@ impl StackElement {
     }
     pub fn as_value(&self) -> Option<Value> {
         match self {
-            StackElement::JsNull => { Some(Null) }
-            StackElement::JsBoolean(b) => { Some(Boolean(*b)) }
-            StackElement::JsNumber(n) => { Some(Number(n.to_string())) }
+            StackElement::JsNull => { Some(Value::Null) }
+            StackElement::JsBoolean(b) => { Some(Value::Bool(*b)) }
+            StackElement::JsNumber(n) => { Some(Value::Number(serde_json::Number::from_str(n).ok()?)) }
             StackElement::JsString(s) => { Some(Value::String(s.clone())) }
             _ => { None }
         }
@@ -163,7 +165,7 @@ impl JsonIndexIterator {
                         let path = self.token_stack.as_json_path();
                         self.clean_stack();
                         if array_len == 0 {
-                            return Ok(Some((path, EmptyArray)));
+                            return Ok(Some((path, Value::Array(vec![]))));
                         }
                     }
 

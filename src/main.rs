@@ -6,9 +6,8 @@ use log::debug;
 use qjsonrs::sync::{Stream, TokenIterator};
 
 use crate::args::Args;
-use crate::json_path::{JsonPath, Value};
+use crate::json_path::{JsonPath};
 use crate::json_path::ToJsonPath;
-use crate::json_path::Value::EmptyArray;
 use crate::token::{JsonIndexable, StackElement};
 use crate::token::StackElement::ArrayIndex;
 
